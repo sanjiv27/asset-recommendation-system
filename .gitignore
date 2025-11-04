@@ -19,7 +19,7 @@ venv.bak/
 # MLflow
 mlruns/
 mlartifacts/
-
+postgres/data/
 
 # Large files and logs
 *.log
