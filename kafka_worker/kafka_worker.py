@@ -8,14 +8,17 @@ from typing import Callable, Dict, List, Optional
 from kafka import KafkaConsumer, KafkaProducer
 from kafka.errors import KafkaError
 
-from . import processing
+import processing
+import db
 
 
 Processor = Callable[[dict], None]
 
 
 REGISTRY: Dict[str, Processor] = {
-    
+    "userprofile": processing.process_userprofile,
+    "retraining": processing.process_retraining,
+    "interactions": processing.process_interactions,
 }
 
 
@@ -115,7 +118,7 @@ def _install_signal_handlers() -> None:
 def run_worker() -> None:
     broker = _get_env("KAFKA_BROKER_URL", "kafka:9092")
     group_id = _get_env("KAFKA_GROUP_ID", "asset-reco-workers")
-    topics = [t.strip() for t in _get_env("KAFKA_TOPICS", "events.raw").split(",") if t.strip()]
+    topics = [t.strip() for t in _get_env("KAFKA_TOPICS", "userprofile,retraining,interactions").split(",") if t.strip()]
     dlq_topic = os.getenv("KAFKA_DLQ_TOPIC")
     max_retries = int(_get_env("WORKER_MAX_RETRIES", "3"))
     concurrency = int(_get_env("WORKER_CONCURRENCY", "4"))
@@ -156,6 +159,11 @@ def run_worker() -> None:
         if producer:
             producer.flush(1.0)
             producer.close()
+    except Exception:
+        pass
+    # Flush any remaining interactions to database
+    try:
+        db.flush_interactions_buffer()
     except Exception:
         pass
 
