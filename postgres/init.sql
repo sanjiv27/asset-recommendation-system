@@ -68,3 +68,13 @@ CREATE TABLE IF NOT EXISTS transactions (
     marketID VARCHAR(20)
 );
 
+-- User Interactions Table
+-- Stores user interactions with assets (clicks, views, purchases, etc.)
+CREATE TABLE IF NOT EXISTS user_interactions (
+    user_name VARCHAR(100) NOT NULL,
+    interaction_type VARCHAR(50) NOT NULL,
+    asset_id VARCHAR(50) NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    metadata JSONB,
+    PRIMARY KEY (user_name, interaction_type, asset_id, timestamp)
+);

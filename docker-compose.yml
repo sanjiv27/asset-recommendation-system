@@ -44,30 +44,24 @@ services:
       - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
     ports:
       - "9092:9092"
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-    ports:
-      - "8080:8080"
-    depends_on:
-      - kafka
-
   worker:
-    build: ./server
+    build: ./kafka_worker
     container_name: asset-recommendation-worker
     environment:
       KAFKA_BROKER_URL: kafka:9092
       KAFKA_GROUP_ID: asset-reco-workers
-      KAFKA_TOPICS: events.raw,events.trading,events.analytics
+      KAFKA_TOPICS: userprofile,retraining,interactions
       KAFKA_DLQ_TOPIC: events.dlq
       WORKER_MAX_RETRIES: "3"
       WORKER_CONCURRENCY: "4"
-    command: ["python", "-m", "server.kafka_worker"]
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: asset_recommendation
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: "123"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     depends_on:
       - kafka
+      - db
 
 
