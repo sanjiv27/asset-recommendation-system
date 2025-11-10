@@ -208,6 +208,23 @@ def ingest_batch(
     )
 
 
+@app.get("/recommendations/{user_name}")
+def get_recommendations(user_name: str = Path(..., description="User name to get recommendations for")) -> dict:
+    pass
+    # TODO: Implement recommendation logic, check MLFlow/cache for existing models, return latest model, otherwise 
+    # train sent userprfile to kafka_worker/userprofile topic to generate new model
+
+
+    # Milestone 1: check directly from MLFlow instead of cache(Reis)
+    # CODE HERE
+    # return latest model from MLFlow
+
+    # Milestone 1: sent userprofile to kafka_worker/userprofile topic to generate new model
+    # CODE HERE
+    # send userprofile to kafka_worker/userprofile topic
+
+    #return {"status": "ok", "recommendations": get_recommendations(user_name)}
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
