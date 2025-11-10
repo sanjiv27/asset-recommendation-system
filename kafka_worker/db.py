@@ -1,7 +1,7 @@
 import os
 from collections import deque
 from typing import List, Tuple
-
+import json
 from psycopg2.pool import SimpleConnectionPool
 
 
@@ -52,7 +52,6 @@ def execute_batch_insert(sql: str, params_list: List[Tuple]) -> None:
 
 def batch_insert_interactions(rows: List[Tuple]) -> None:
     """Batch insert user interactions."""
-    import json
     # Convert metadata to JSONB format
     rows_with_jsonb = []
     for row in rows:
@@ -96,7 +95,6 @@ def flush_interactions_buffer() -> None:
 
 def get_user_interactions(user_name: str, limit: int = 1000) -> List[dict]:
     """Get user interactions from database."""
-    import json
     connection = _pool.getconn()
     try:
         with connection:
@@ -104,39 +102,6 @@ def get_user_interactions(user_name: str, limit: int = 1000) -> List[dict]:
                 cursor.execute(
                     "SELECT user_name, interaction_type, asset_id, timestamp, metadata::text "
                     "FROM user_interactions "
-                    "WHERE user_name = %s "
-                    "ORDER BY timestamp DESC "
-                    "LIMIT %s",
-                    (user_name, limit),
-                )
-                columns = [desc[0] for desc in cursor.description]
-                results = []
-                for row in cursor.fetchall():
-                    row_dict = dict(zip(columns, row))
-                    # Parse JSONB metadata back to dict
-                    if row_dict.get("metadata"):
-                        try:
-                            row_dict["metadata"] = json.loads(row_dict["metadata"])
-                        except (json.JSONDecodeError, TypeError):
-                            row_dict["metadata"] = {}
-                    else:
-                        row_dict["metadata"] = {}
-                    results.append(row_dict)
-                return results
-    finally:
-        _pool.putconn(connection)
-
-
-def get_user_recommendations(user_name: str, limit: int = 100) -> List[dict]:
-    """Get user's past recommendations from database."""
-    import json
-    connection = _pool.getconn()
-    try:
-        with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT user_name, recommended_assets, timestamp, model_version, metadata::text "
-                    "FROM user_recommendations "
                     "WHERE user_name = %s "
                     "ORDER BY timestamp DESC "
                     "LIMIT %s",
