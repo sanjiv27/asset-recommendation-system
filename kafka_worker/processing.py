@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Optional
 import mlflow
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import NMF
-from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import TruncatedSVD
+from scipy.sparse import csr_matrix
 
 import db
 
@@ -76,6 +76,34 @@ def process_userprofile(msg: Dict[str, Any]) -> None:
         }
         mlflow.log_dict(matrix_dict, "matrix_info.json")
 
+# COLLABORATIVE FILTERING COMPONENT
+def _generate_matrix_factorization(n_components: int):
+    # pull all data from database
+    buy_transactions = np.array(db.get_buy_transactions())
+
+    # Get unique user IDs and create a mapping
+    unique_users, user_indices = np.unique(buy_transactions[:, 0], return_inverse=True)
+    num_users = len(unique_users)
+
+    # Get unique asset IDs and create a mapping
+    unique_assets, asset_indices = np.unique(buy_transactions[:, 1], return_inverse=True)
+    num_assets = len(unique_assets)
+
+    # The third column contains the interaction strength (the 'count')
+    interaction_strength = buy_transactions[:, 2].astype(float)
+
+    rating_matrix = csr_matrix(
+        (interaction_strength, (user_indices, asset_indices)),
+        shape=(num_users, num_assets)
+    )
+
+    svd = TruncatedSVD(n_components=n_components, random_state=42)
+    U = svd.fit_transform(rating_matrix)
+    V = svd.components_.T  # shape: (num_assets, n_components)
+    
+    pred_ratings = np.dot(U, V.T)
+    pred_df = pd.DataFrame(pred_ratings, index=rating_matrix.index, columns=rating_matrix.columns)
+    return pred_df
 
 def process_retraining(msg: Dict[str, Any]) -> None:
     """

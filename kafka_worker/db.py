@@ -137,3 +137,15 @@ def get_dataset(dataset_name: str) -> List[dict]:
                 return cursor.fetchall()
     finally:
         _pool.putconn(connection)
+
+
+def get_buy_transactions() -> List[Tuple[str, str, int]]:
+    """Get buy transactions from database."""
+    connection = _pool.getconn()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT customerID, ISIN, COUNT(transactionID) as transaction_count FROM transactions WHERE transactionType = 'Buy' GROUP BY (customerID, ISIN) ORDER BY timestamp DESC")
+                return cursor.fetchall()
+    finally:
+        _pool.putconn(connection)
