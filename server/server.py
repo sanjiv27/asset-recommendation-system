@@ -20,8 +20,16 @@ from .data_class import (
     RecommendationRequest,
 )
 from datetime import datetime
+from kafka import KafkaProducer
+import json
 
 app = FastAPI(title="Asset Recommendation")
+
+producer = KafkaProducer(
+    bootstrap_servers=['kafka:9092'],  # Change to your Kafka broker address
+    value_serializer=lambda m: json.dumps(m).encode('utf-8'), # Auto-converts dict to JSON bytes
+    key_serializer=lambda k: k.encode('utf-8') # Encodes the key (customer_id) to bytes
+)
 
 DatasetName = Literal[
     "customer_information",
@@ -211,17 +219,12 @@ def get_recommendations(payload: RecommendationRequest):
     Receives full user profile from client, sends to Worker to generate recommendations.
     """
     try:
-        # 1. Construct the message for the Worker
-        # We add a timestamp so the worker knows when this request originated
         worker_message = payload.dict()
         worker_message['timestamp'] = datetime.utcnow().isoformat()
 
-        # 2. Send to Kafka 'userprofile' topic
-        # The worker will pick this up, calculate vectors, and generate recs
-        # producer.send('userprofile', value=worker_message)
-        
-        # 3. Return 'Success' or 'Pending'
-        # In a real system, you might return a job_id or check a cache immediately
+        future = producer.send('userprofile', value=worker_message)
+        record_metadata = future.get(timeout=10)
+        print(f"Message sent to topic: {record_metadata.topic}, partition: {record_metadata.partition}")
         return {
             "status": "queued",
             "message": "User profile sent to recommendation engine.",
