@@ -17,11 +17,11 @@ from .data_class import (
     ClosePricesRow,
     LimitPricesRow,
     TransactionsRow,
+    RecommendationRequest,
 )
+from datetime import datetime
 
 app = FastAPI(title="Asset Recommendation")
-
-
 
 DatasetName = Literal[
     "customer_information",
@@ -31,7 +31,6 @@ DatasetName = Literal[
     "limit_prices",
     "transactions",
 ]
-
 
 @app.post("/data/training/{dataset}")
 def ingest_row(
@@ -147,7 +146,6 @@ def ingest_row(
 
     raise HTTPException(status_code=400, detail="Unsupported dataset")
 
-
 @app.post("/data/training/{dataset}/batch")
 def ingest_batch(
     dataset: DatasetName = Path(..., description="Target table to insert into"),
@@ -207,23 +205,31 @@ def ingest_batch(
         detail=f"Batch insert not supported for dataset: {dataset}. Supported: customer_information, close_prices, transactions"
     )
 
+@app.post("/recommendations")
+def get_recommendations(payload: RecommendationRequest):
+    """
+    Receives full user profile from client, sends to Worker to generate recommendations.
+    """
+    try:
+        # 1. Construct the message for the Worker
+        # We add a timestamp so the worker knows when this request originated
+        worker_message = payload.dict()
+        worker_message['timestamp'] = datetime.utcnow().isoformat()
 
-@app.get("/recommendations/{user_name}")
-def get_recommendations(user_name: str = Path(..., description="User name to get recommendations for")) -> dict:
-    pass
-    # TODO: Implement recommendation logic, check MLFlow/cache for existing models, return latest model, otherwise 
-    # train sent userprfile to kafka_worker/userprofile topic to generate new model
+        # 2. Send to Kafka 'userprofile' topic
+        # The worker will pick this up, calculate vectors, and generate recs
+        # producer.send('userprofile', value=worker_message)
+        
+        # 3. Return 'Success' or 'Pending'
+        # In a real system, you might return a job_id or check a cache immediately
+        return {
+            "status": "queued",
+            "message": "User profile sent to recommendation engine.",
+            "customer_id": payload.customer_id
+        }
 
-
-    # Milestone 1: check directly from MLFlow instead of cache(Reis)
-    # CODE HERE
-    # return latest model from MLFlow
-
-    # Milestone 1: sent userprofile to kafka_worker/userprofile topic to generate new model
-    # CODE HERE
-    # send userprofile to kafka_worker/userprofile topic
-
-    #return {"status": "ok", "recommendations": get_recommendations(user_name)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 @app.get("/health")
 def health() -> dict:

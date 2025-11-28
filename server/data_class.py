@@ -1,6 +1,7 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from pydantic import BaseModel, Field
-from datetime import date
+from datetime import date, datetime
+from enum import Enum
 
 class CustomerInformationRow(BaseModel):
     customerID: str
@@ -60,3 +61,26 @@ class TransactionsRow(BaseModel):
     channel: Optional[str] = None
     marketID: Optional[str] = None
 
+class RiskLevel(str, Enum):
+    CONSERVATIVE = "Conservative"
+    INCOME = "Income"
+    BALANCED = "Balanced"
+    AGGRESSIVE = "Aggressive"
+
+class InvestCapacity(str, Enum):
+    LOW = "CAP_LT30K"
+    MEDIUM = "CAP_30K_80K"
+    HIGH = "CAP_80K_300K"
+    VERY_HIGH = "CAP_GT300K"
+
+class CustomerType(str, Enum):
+    MASS = "Mass"
+    PREMIUM = "Premium"
+    PROFESSIONAL = "Professional"
+
+class RecommendationRequest(BaseModel):
+    customer_id: str = Field(..., description="Unique user identifier")
+    risk_level: RiskLevel = Field(..., description="User's risk tolerance")
+    investment_capacity: InvestCapacity = Field(..., description="User's investment capacity")
+    customer_type: CustomerType = Field(default=CustomerType.MASS)
+    history_isins: List[str] = Field(default_factory=list, description="List of ISINs the user already bought")
