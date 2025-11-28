@@ -139,13 +139,89 @@ def get_dataset(dataset_name: str) -> List[dict]:
         _pool.putconn(connection)
 
 
-def get_buy_transactions() -> List[Tuple[str, str, int]]:
-    """Get buy transactions from database."""
+def get_buy_transactions() -> List[dict]:
+    """
+    Get buy transactions from database.
+    Returns list of dicts with columns: customerID, ISIN, transactionType, timestamp
+    """
     connection = _pool.getconn()
     try:
         with connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT customerID, ISIN, COUNT(transactionID) as transaction_count FROM transactions WHERE transactionType = 'Buy' GROUP BY (customerID, ISIN) ORDER BY timestamp DESC")
-                return cursor.fetchall()
+                cursor.execute(
+                    "SELECT customerID, ISIN, transactionType, timestamp "
+                    "FROM transactions "
+                    "WHERE transactionType = 'Buy' "
+                    "ORDER BY timestamp DESC"
+                )
+                columns = [desc[0] for desc in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    finally:
+        _pool.putconn(connection)
+
+
+def get_assets() -> List[dict]:
+    """
+    Get asset information from database.
+    Returns list of dicts with columns: ISIN, assetCategory, assetSubCategory, sector, industry, marketID
+    Returns the latest record for each ISIN (by timestamp).
+    """
+    connection = _pool.getconn()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (ISIN) 
+                        ISIN, assetCategory, assetSubCategory, sector, industry, marketID
+                    FROM asset_information
+                    ORDER BY ISIN, timestamp DESC
+                    """
+                )
+                columns = [desc[0] for desc in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    finally:
+        _pool.putconn(connection)
+
+
+def get_customers() -> List[dict]:
+    """
+    Get customer information from database.
+    Returns list of dicts with columns: customerID, riskLevel, investmentCapacity, customerType, timestamp
+    Returns the latest record for each customerID (by timestamp).
+    """
+    connection = _pool.getconn()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT ON (customerID)
+                        customerID, riskLevel, investmentCapacity, customerType, timestamp
+                    FROM customer_information
+                    ORDER BY customerID, timestamp DESC
+                    """
+                )
+                columns = [desc[0] for desc in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    finally:
+        _pool.putconn(connection)
+
+
+def get_limit_prices() -> List[dict]:
+    """
+    Get limit prices and profitability from database.
+    Returns list of dicts with columns: ISIN, profitability, priceMaxDate
+    """
+    connection = _pool.getconn()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT ISIN, profitability, priceMaxDate "
+                    "FROM limit_prices"
+                )
+                columns = [desc[0] for desc in cursor.description]
+                return [dict(zip(columns, row)) for row in cursor.fetchall()]
     finally:
         _pool.putconn(connection)

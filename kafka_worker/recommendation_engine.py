@@ -46,27 +46,32 @@ class RecommendationEngine:
         
         # 1. Transactions
         raw_txns = db.get_buy_transactions() 
-        # Assuming raw_txns is a list of tuples or dicts. 
-        # You might need columns=['customerID', 'ISIN', 'transactionType', 'timestamp']
+        # Returns list of dicts with columns: customerID, ISIN, transactionType, timestamp
         self.transactions_df = pd.DataFrame(raw_txns) 
 
         # 2. Assets
-        # raw_assets = db.get_assets()
-        # self.asset_df = pd.DataFrame(raw_assets)
-        # Placeholder for now:
-        self.asset_df = pd.DataFrame(columns=['ISIN', 'assetCategory', 'assetSubCategory', 'sector', 'industry', 'marketID'])
+        raw_assets = db.get_assets()
+        # Returns list of dicts with columns: ISIN, assetCategory, assetSubCategory, sector, industry, marketID
+        self.asset_df = pd.DataFrame(raw_assets)
+        if self.asset_df.empty:
+            # Fallback to empty DataFrame with correct columns if no data
+            self.asset_df = pd.DataFrame(columns=['ISIN', 'assetCategory', 'assetSubCategory', 'sector', 'industry', 'marketID'])
 
         # 3. Customers
-        # raw_customers = db.get_customers()
-        # self.customer_df = pd.DataFrame(raw_customers)
-        # Placeholder:
-        self.customer_df = pd.DataFrame(columns=['customerID', 'riskLevel', 'investmentCapacity', 'customerType', 'timestamp'])
+        raw_customers = db.get_customers()
+        # Returns list of dicts with columns: customerID, riskLevel, investmentCapacity, customerType, timestamp
+        self.customer_df = pd.DataFrame(raw_customers)
+        if self.customer_df.empty:
+            # Fallback to empty DataFrame with correct columns if no data
+            self.customer_df = pd.DataFrame(columns=['customerID', 'riskLevel', 'investmentCapacity', 'customerType', 'timestamp'])
 
         # 4. Limit Prices / Profitability
-        # raw_prices = db.get_limit_prices()
-        # self.limit_prices_df = pd.DataFrame(raw_prices)
-        # Placeholder:
-        self.limit_prices_df = pd.DataFrame(columns=['ISIN', 'profitability', 'priceMaxDate'])
+        raw_prices = db.get_limit_prices()
+        # Returns list of dicts with columns: ISIN, profitability, priceMaxDate
+        self.limit_prices_df = pd.DataFrame(raw_prices)
+        if self.limit_prices_df.empty:
+            # Fallback to empty DataFrame with correct columns if no data
+            self.limit_prices_df = pd.DataFrame(columns=['ISIN', 'profitability', 'priceMaxDate'])
         
         logger.info("Data fetch complete.")
 
