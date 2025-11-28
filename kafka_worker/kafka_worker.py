@@ -10,6 +10,7 @@ from kafka.errors import KafkaError
 
 import processing
 import db
+import recommendation_engine
 
 
 Processor = Callable[[dict], None]
@@ -23,6 +24,8 @@ REGISTRY: Dict[str, Processor] = {
 
 
 _shutdown = threading.Event()
+
+engine = recommendation_engine.RecommendationEngine()
 
 
 def _get_env(name: str, default: str) -> str:
