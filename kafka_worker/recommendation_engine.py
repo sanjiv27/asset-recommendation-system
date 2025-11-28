@@ -3,7 +3,6 @@ import numpy as np
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 import logging
-from datetime import datetime
 
 # Assume this is your database connector module
 import db 
@@ -37,12 +36,8 @@ class RecommendationEngine:
     def _fetch_from_db(self):
         """
         Internal method to fetch raw data from DB.
-        Fill out the specific db.* calls here.
         """
         logger.info("Fetching data from Database...")
-        
-        # Example: Convert numpy array or list of dicts from DB to DataFrame
-        # You will need to map your DB column names to the names used in your logic
         
         # 1. Transactions
         raw_txns = db.get_buy_transactions() 
@@ -144,13 +139,76 @@ class RecommendationEngine:
         self.encoded_asset_features = encoded
 
     def _prepare_demographic_profiles(self):
-        """Pre-computes category similarity maps based on demographics."""
-        logger.info("Preparing Demographic profiles...")
-        # (Simplified version of your logic to store the category_map)
-        # In a real worker, you calculate the `category_sim_map` here 
-        # so you don't iterate over the whole customer DB for every prediction request.
-        # For brevity, I'm marking this as the spot to run the 'average demographic vector' logic.
-        pass
+        """
+        Pre-computes the 'Average Demographic Vector' for each Asset Category.
+        
+        Logic:
+        1. Map all customers in DB to numeric vectors (Risk, Capacity, Type).
+        2. Join Transactions -> Assets -> Customers.
+        3. Group by 'assetCategory' and calculate the mean vector.
+        4. Store this lookup table for fast inference.
+        """
+        logger.info("Preparing Demographic profiles (Category Centroids)...")
+
+        if self.transactions_df.empty or self.customer_df.empty:
+            logger.warning("Insufficient data to build demographic profiles.")
+            self.category_vectors = pd.DataFrame()
+            return
+
+        # --- 1. Define Mappings (Strings to Ints) ---
+        risk_map = {"Conservative": 1, "Income": 2, "Balanced": 3, "Aggressive": 4}
+        cap_map = {"CAP_LT30K": 1, "CAP_30K_80K": 2, "CAP_80K_300K": 3, "CAP_GT300K": 4}
+
+        # Helper to clean "Predicted_" prefixes
+        def clean_label(val):
+            if pd.isna(val) or val == "Not_Available": return None
+            return str(val).replace("Predicted_", "")
+
+        # --- 2. Vectorize Customer DB ---
+        # Work on a copy to avoid mutating global state
+        cust_vecs = self.customer_df.copy()
+        
+        # Apply cleaning and mapping
+        cust_vecs['risk_clean'] = cust_vecs['riskLevel'].apply(clean_label)
+        cust_vecs['cap_clean'] = cust_vecs['investmentCapacity'].apply(clean_label)
+        
+        # Map to numerics
+        cust_vecs['risk_val'] = cust_vecs['risk_clean'].map(risk_map)
+        cust_vecs['cap_val'] = cust_vecs['cap_clean'].map(cap_map)
+        
+        # One-hot-ish encodings for customer type
+        cust_vecs['is_premium'] = (cust_vecs['customerType'] == 'Premium').astype(int)
+        cust_vecs['is_professional'] = (cust_vecs['customerType'] == 'Professional').astype(int)
+
+        # Drop users where we couldn't parse risk or cap
+        cust_vecs = cust_vecs.dropna(subset=['risk_val', 'cap_val'])
+
+        # --- 3. Merge to link Categories to Customer Vectors ---
+        # We need: Transaction -> ISIN -> Asset Category
+        #          Transaction -> CustomerID -> Customer Vector
+        
+        # Merge Transactions with Assets to get Category
+        txn_with_cat = self.transactions_df[['customerID', 'ISIN']].merge(
+            self.asset_df[['ISIN', 'assetCategory']], 
+            on='ISIN', 
+            how='inner'
+        )
+
+        # Merge result with Customer Vectors
+        full_profile = txn_with_cat.merge(
+            cust_vecs[['customerID', 'risk_val', 'cap_val', 'is_premium', 'is_professional']],
+            on='customerID',
+            how='inner'
+        )
+
+        # --- 4. GroupBy Category and Calculate Mean Vector ---
+        # Result index: assetCategory
+        # Result columns: risk_val, cap_val, is_premium, is_professional
+        self.category_vectors = full_profile.groupby('assetCategory')[
+            ['risk_val', 'cap_val', 'is_premium', 'is_professional']
+        ].mean()
+
+        logger.info(f"Demographic profiles built for {len(self.category_vectors)} categories.")
 
     # ==========================================
     # 3. PUBLIC INTERFACE (Refresh & Predict)
@@ -232,10 +290,88 @@ class RecommendationEngine:
 
     # Helpers for inference
     def _calculate_content_score_fast(self, customer_id):
-        # Implementation of your content logic using self.encoded_asset_features
-        # and self.rating_df
-        return pd.Series(0, index=self.encoded_asset_features.index) # Placeholder
+        """
+        Calculates Content-Based scores using pre-computed asset features.
+        
+        Logic:
+        1. Look up items the user bought.
+        2. Create a 'User Profile' by averaging the features of those items.
+        3. Compute Cosine Similarity between User Profile and ALL assets.
+        """
+        # 1. Safety Checks
+        if self.encoded_asset_features is None or self.encoded_asset_features.empty:
+            # Fallback if features weren't loaded
+            return pd.Series(0, index=[]) 
 
-    def _calculate_demo_score_fast(self, customer_id):
-        # Implementation of your demo logic
-        return pd.Series(0, index=self.encoded_asset_features.index) # Placeholder
+        # 2. Get User History
+        # We access the raw rating dataframe to find what this user bought.
+        # (Assumes self.rating_df has 'customerID' and 'ISIN' columns)
+        if customer_id not in self.rating_df['customerID'].values:
+            # Cold Start: User has no history. Return neutral score.
+            return pd.Series(0.5, index=self.encoded_asset_features.index)
+
+        user_history = self.rating_df[self.rating_df['customerID'] == customer_id]
+        bought_isins = user_history['ISIN'].unique()
+
+        # 3. Filter for Valid ISINs
+        # We only care about assets that exist in our feature matrix
+        valid_isins = [isin for isin in bought_isins if isin in self.encoded_asset_features.index]
+
+        if not valid_isins:
+            # History exists but items are missing from feature set (rare edge case)
+            return pd.Series(0.5, index=self.encoded_asset_features.index)
+
+        # 4. Build User Profile Vector (The Centroid)
+        # We grab the feature rows for every asset the user bought
+        user_assets_matrix = self.encoded_asset_features.loc[valid_isins]
+        
+        # We take the mean across the rows (axis=0) to get one vector representing the user
+        user_profile_vector = user_assets_matrix.mean(axis=0).values.reshape(1, -1)
+
+        # 5. Calculate Similarity
+        # Compare the User Vector against the WHOLE asset feature matrix
+        # cosine_similarity returns shape (1, n_assets)
+        sim_matrix = cosine_similarity(user_profile_vector, self.encoded_asset_features)
+
+        # 6. Return as Pandas Series
+        # Flatten the result [0] to get a 1D array
+        return pd.Series(sim_matrix[0], index=self.encoded_asset_features.index)
+
+
+    def _calculate_demo_score_fast(self, target_user_profile: dict):
+        """
+        Calculates similarity between the incoming user profile and 
+        the pre-computed category vectors.
+        """
+        if self.category_vectors is None or self.category_vectors.empty:
+             return pd.Series(0.5, index=self.asset_df['ISIN'])
+
+        # 1. Construct Target Vector from the Request Data
+        # (Assuming the request data is already mapped to ints 1-4, or map them here)
+        target_vec = np.array([
+            target_user_profile.get('risk_val', 2.5), # Default to neutral if missing
+            target_user_profile.get('cap_val', 2.5),
+            1 if target_user_profile.get('is_premium') else 0,
+            1 if target_user_profile.get('is_professional') else 0
+        ])
+
+        # 2. Weights for distance calculation (Risk, Cap, Prem, Prof)
+        weights = np.array([0.4, 0.3, 0.2, 0.1])
+        max_dist_const = np.sqrt(np.sum(weights * np.array([3, 3, 1, 1]) ** 2)) # Normalization factor
+
+        # 3. Calculate Similarity for all categories at once (Vectorized)
+        # diff = (Category_Matrix - Target_Vector)
+        diff = self.category_vectors - target_vec
+        
+        # Weighted Euclidean Distance
+        # (weighted_diff^2) -> sum -> sqrt
+        dist = np.sqrt(((diff ** 2) * weights).sum(axis=1))
+        
+        # Similarity = 1 - Normalized Distance
+        sim_scores = 1 - (dist / max_dist_const)
+        
+        # 4. Map Category Scores back to individual Assets (ISINs)
+        # self.asset_df has 'assetCategory', we map the score to it.
+        asset_scores = self.asset_df.set_index('ISIN')['assetCategory'].map(sim_scores)
+        
+        return asset_scores.fillna(0.5)
