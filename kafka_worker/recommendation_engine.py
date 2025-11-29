@@ -381,40 +381,65 @@ class RecommendationEngine:
         return pd.Series(sim_matrix[0], index=self.encoded_asset_features.index)
 
 
-    def _calculate_demo_score_fast(self, target_user_profile: dict):
+    def _calculate_demo_score_fast(self, customer_id):
         """
-        Calculates similarity between the incoming user profile and 
+        Calculates similarity between the user (looked up by ID) and 
         the pre-computed category vectors.
         """
+        # 1. Safety Check: Do we have category vectors?
         if self.category_vectors is None or self.category_vectors.empty:
              return pd.Series(0.5, index=self.asset_df['ISIN'])
 
-        # 1. Construct Target Vector from the Request Data
-        # (Assuming the request data is already mapped to ints 1-4, or map them here)
-        target_vec = np.array([
-            target_user_profile.get('risk_val', 2.5), # Default to neutral if missing
-            target_user_profile.get('cap_val', 2.5),
-            1 if target_user_profile.get('is_premium') else 0,
-            1 if target_user_profile.get('is_professional') else 0
-        ])
+        # 2. Look up the user in the loaded dataframe
+        # We need to find the row for this customerID
+        user_row = self.customer_df[self.customer_df['customerID'] == customer_id]
+        
+        if user_row.empty:
+            # User not found in local DB (Cold Start) -> Return Neutral
+            return pd.Series(0.5, index=self.asset_df['ISIN'])
 
-        # 2. Weights for distance calculation (Risk, Cap, Prem, Prof)
+        # 3. Extract attributes
+        # We use .iloc[0] because the filter returns a DataFrame, we need the Series
+        risk_str = user_row.iloc[0]['riskLevel']
+        cap_str = user_row.iloc[0]['investmentCapacity']
+        ctype_str = user_row.iloc[0]['customerType']
+
+        # 4. Define Mappings (Same as in _prepare_demographic_profiles)
+        risk_map = {"Conservative": 1, "Income": 2, "Balanced": 3, "Aggressive": 4}
+        cap_map = {"CAP_LT30K": 1, "CAP_30K_80K": 2, "CAP_80K_300K": 3, "CAP_GT300K": 4}
+        
+        # Helper to clean labels (remove "Predicted_" if present)
+        def clean(val):
+            return str(val).replace("Predicted_", "") if val else ""
+
+        # 5. Construct Target Vector
+        # We map the strings to integers. 
+        # get(..., 2.5) provides a safe default if the specific value is unknown.
+        risk_val = risk_map.get(clean(risk_str), 2.5)
+        cap_val = cap_map.get(clean(cap_str), 2.5)
+        is_premium = 1 if ctype_str == "Premium" else 0
+        is_professional = 1 if ctype_str == "Professional" else 0
+
+        target_vec = np.array([risk_val, cap_val, is_premium, is_professional])
+
+        # 6. Weights for distance calculation (Risk, Cap, Prem, Prof)
         weights = np.array([0.4, 0.3, 0.2, 0.1])
-        max_dist_const = np.sqrt(np.sum(weights * np.array([3, 3, 1, 1]) ** 2)) # Normalization factor
+        # Normalization factor (Max theoretical distance)
+        max_dist_const = np.sqrt(np.sum(weights * np.array([3, 3, 1, 1]) ** 2))
 
-        # 3. Calculate Similarity for all categories at once (Vectorized)
+        # 7. Calculate Similarity for all categories (Vectorized)
         # diff = (Category_Matrix - Target_Vector)
         diff = self.category_vectors - target_vec
         
         # Weighted Euclidean Distance
-        # (weighted_diff^2) -> sum -> sqrt
         dist = np.sqrt(((diff ** 2) * weights).sum(axis=1))
         
         # Similarity = 1 - Normalized Distance
         sim_scores = 1 - (dist / max_dist_const)
         
-        # 4. Map Category Scores back to individual Assets (ISINs)
+        # 8. Map Category Scores back to individual Assets
         # self.asset_df has 'assetCategory', we map the score to it.
+        # We set index to ISIN so the result is a Series keyed by ISIN
         asset_scores = self.asset_df.set_index('ISIN')['assetCategory'].map(sim_scores)
         
         return asset_scores.fillna(0.5)
