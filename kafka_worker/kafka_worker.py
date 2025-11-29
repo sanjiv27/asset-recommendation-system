@@ -3,6 +3,7 @@ import threading
 import schedule
 from recommendation_engine import RecommendationEngine
 from kafka import KafkaConsumer
+from db import save_recommendations
 import json
 
 # 1. Initialize Global Engine
@@ -27,10 +28,10 @@ def process_kafka_message(msg):
     """
     action = msg.get('action')
     customer_id = msg.get('customer_id')
-    payload = msg.get('payload')
     if action == 'request_recs':
         if engine.is_ready:
             recs = engine.get_recommendation(customer_id, top_n=10)
+            save_recommendations(customer_id, recs)
             print(f"Recommendations for {customer_id}: {recs}")
             # Produce result back to Kafka or save to DB
         else:

@@ -278,14 +278,6 @@ class RecommendationEngine:
                        weights[1] * normalize(cb_scores) + 
                        weights[2] * normalize(demo_scores))
         
-        # Filter already bought
-        if customer_id in self.rating_df.index.get_level_values(0):
-            bought = self.rating_df.loc[customer_id]['ISIN'].tolist() if 'ISIN' in self.rating_df.columns else [] 
-            # Note: pivot table structure might make looking up bought items slightly different 
-            # depending on how you stored rating_df. 
-            # Fix: Since rating_df was groupby, we can filter against it directly.
-            pass 
-
         return final_score.sort_values(ascending=False).head(top_n).index.tolist()
 
     # Helpers for inference
