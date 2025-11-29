@@ -4,7 +4,7 @@ An asset recommendation system with tunable hybrid approach.
 
 ## Milestone 1
 
-Tech Stack: Minukube, Kafka, Python, FastAPI, MLFlow server
+Tech Stack: Minukube, Kafka, Python, FastAPI
 
 ### Foundational Model Training Flow
 
@@ -17,7 +17,7 @@ Tech Stack: Minukube, Kafka, Python, FastAPI, MLFlow server
 
 ### Setup Dev Environment
 
-- Initialize all services: Postgres, MLFlow, Server. **Reminder:** We are using docker image to containerize all services, thus if you make any changes in any files, you have to rerun this command to see changes.
+- Initialize all services: Postgres, Server. **Reminder:** We are using docker image to containerize all services, thus if you make any changes in any files, you have to rerun this command to see changes.
 
 `docker compose up --build -d`
 

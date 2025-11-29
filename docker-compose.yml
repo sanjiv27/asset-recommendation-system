@@ -45,18 +45,6 @@ services:
     ports:
       - "9092:9092"
 
-  mlflow:
-    build: ./mlflow_server
-    container_name: mlflow
-    environment:
-      MLFLOW_BACKEND_STORE_URI: file:///mlflow/data
-      MLFLOW_ARTIFACT_ROOT: file:///mlflow/artifacts
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./mlflow_server/data:/mlflow/data
-      - ./mlflow_server/artifacts:/mlflow/artifacts
-
   worker:
     build: ./kafka_worker
     container_name: asset-recommendation-worker
@@ -72,10 +60,9 @@ services:
       POSTGRES_DB: asset_recommendation
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: "123"
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+
     depends_on:
       - kafka
       - db
-      - mlflow
 
 
