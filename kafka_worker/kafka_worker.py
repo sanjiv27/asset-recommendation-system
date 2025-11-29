@@ -5,18 +5,32 @@ from recommendation_engine import RecommendationEngine
 from kafka import KafkaConsumer
 from db import save_recommendations
 import json
+from kafka.errors import NoBrokersAvailable
 
 # 1. Initialize Global Engine
 engine = RecommendationEngine()
 
-# UPDATE 1: Add value_deserializer so messages arrive as Dicts, not Bytes
-consumer = KafkaConsumer(
-    'userprofile', 
-    bootstrap_servers=['kafka:9092'], 
-    auto_offset_reset='earliest',
-    value_deserializer=lambda m: json.loads(m.decode('utf-8')) # decoding logic
-)
 
+def get_kafka_consumer():
+    retries = 0
+    while retries < 15:
+        try:
+            consumer = KafkaConsumer(
+                'userprofile', 
+                bootstrap_servers=['kafka:9092'], 
+                auto_offset_reset='earliest',
+                value_deserializer=lambda m: json.loads(m.decode('utf-8'))
+            )
+            print("Worker connected to Kafka!")
+            return consumer
+        except NoBrokersAvailable:
+            print("Kafka Broker not available. Retrying in 2 seconds...")
+            time.sleep(2)
+            retries += 1
+    raise Exception("Failed to connect to Kafka")
+
+
+consumer = get_kafka_consumer()
 def run_scheduler():
     """Background thread to update models every X minutes"""
     while True:

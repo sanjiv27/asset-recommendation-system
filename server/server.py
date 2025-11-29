@@ -21,15 +21,30 @@ from .data_class import (
 )
 from datetime import datetime
 from kafka import KafkaProducer
+from kafka.errors import NoBrokersAvailable
 import json
+import time
+
+def get_kafka_producer():
+    retries = 0
+    while retries < 15:
+        try:
+            producer = KafkaProducer(
+                bootstrap_servers=['kafka:9092'],
+                value_serializer=lambda m: json.dumps(m).encode('utf-8'),
+                key_serializer=lambda k: k.encode('utf-8') if k is not None else None
+            )
+            print("Connected to Kafka!")
+            return producer
+        except NoBrokersAvailable:
+            print("Kafka not ready yet. Retrying in 2 seconds...")
+            time.sleep(2)
+            retries += 1
+    raise Exception("Failed to connect to Kafka")
 
 app = FastAPI(title="Asset Recommendation")
 
-producer = KafkaProducer(
-    bootstrap_servers=['kafka:9092'],  # Change to your Kafka broker address
-    value_serializer=lambda m: json.dumps(m).encode('utf-8'), # Auto-converts dict to JSON bytes
-    key_serializer=lambda k: k.encode('utf-8') # Encodes the key (customer_id) to bytes
-)
+producer = get_kafka_producer()
 
 DatasetName = Literal[
     "customer_information",
