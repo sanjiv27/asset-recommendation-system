@@ -223,14 +223,11 @@ def get_recommendations(payload: RecommendationRequest):
         worker_message['customer_id'] = payload.customer_id
         worker_message['action'] = 'request_recs'
 
-        future = producer.send('userprofile', value=worker_message)
+
+        future = producer.send('userprofile', value=worker_message, key=payload.customer_id)
         record_metadata = future.get(timeout=10)
         print(f"Message sent to topic: {record_metadata.topic}, partition: {record_metadata.partition}")
-        return {
-            "status": "queued",
-            "message": "User profile sent to recommendation engine.",
-            "customer_id": payload.customer_id
-        }
+        return {"status": "ok"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")

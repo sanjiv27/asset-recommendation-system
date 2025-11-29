@@ -34,41 +34,92 @@ class RecommendationEngine:
     # 1. DATA LOADING (The DB Layer)
     # ==========================================
     def _fetch_from_db(self):
-        """
-        Internal method to fetch raw data from DB.
-        """
         logger.info("Fetching data from Database...")
-        
+
+        # --- Helper to fix Postgres lowercase columns ---
+        def fix_columns(df, required_map):
+            """
+            Renames columns from Postgres lowercase/snake_case 
+            to the CamelCase expected by the engine.
+            """
+            # 1. Normalize current columns to strict lowercase to match easily
+            df.columns = [c.lower() for c in df.columns]
+            
+            # 2. Rename based on the map
+            # We use a dictionary where Key = lowercase_db_name, Value = ExpectedName
+            # We filter the map to only include columns that actually exist in the df
+            actual_rename = {k: v for k, v in required_map.items() if k in df.columns}
+            df.rename(columns=actual_rename, inplace=True)
+            return df
+
+        # -----------------------------------------------
         # 1. Transactions
-        raw_txns = db.get_buy_transactions() 
-        # Returns list of dicts with columns: customerID, ISIN, transactionType, timestamp
-        self.transactions_df = pd.DataFrame(raw_txns) 
-
-        # 2. Assets
-        raw_assets = db.get_assets()
-        # Returns list of dicts with columns: ISIN, assetCategory, assetSubCategory, sector, industry, marketID
-        self.asset_df = pd.DataFrame(raw_assets)
-        if self.asset_df.empty:
-            # Fallback to empty DataFrame with correct columns if no data
-            self.asset_df = pd.DataFrame(columns=['ISIN', 'assetCategory', 'assetSubCategory', 'sector', 'industry', 'marketID'])
-
-        # 3. Customers
-        raw_customers = db.get_customers()
-        # Returns list of dicts with columns: customerID, riskLevel, investmentCapacity, customerType, timestamp
-        self.customer_df = pd.DataFrame(raw_customers)
-        if self.customer_df.empty:
-            # Fallback to empty DataFrame with correct columns if no data
-            self.customer_df = pd.DataFrame(columns=['customerID', 'riskLevel', 'investmentCapacity', 'customerType', 'timestamp'])
-
-        # 4. Limit Prices / Profitability
-        raw_prices = db.get_limit_prices()
-        # Returns list of dicts with columns: ISIN, profitability, priceMaxDate
-        self.limit_prices_df = pd.DataFrame(raw_prices)
-        if self.limit_prices_df.empty:
-            # Fallback to empty DataFrame with correct columns if no data
-            self.limit_prices_df = pd.DataFrame(columns=['ISIN', 'profitability', 'priceMaxDate'])
+        # -----------------------------------------------
+        raw_txns = db.get_buy_transactions()
+        self.transactions_df = pd.DataFrame(raw_txns)
         
-        logger.info("Data fetch complete.")
+        # logic needs: customerID, ISIN, transactionType, timestamp
+        self.transactions_df = fix_columns(self.transactions_df, {
+            'customerid': 'customerID',
+            'customer_id': 'customerID', 
+            'isin': 'ISIN',
+            'transactiontype': 'transactionType',
+            'transaction_type': 'transactionType',
+            'timestamp': 'timestamp'
+        })
+
+        # -----------------------------------------------
+        # 2. Assets
+        # -----------------------------------------------
+        raw_assets = db.get_assets()
+        self.asset_df = pd.DataFrame(raw_assets)
+        
+        # logic needs: ISIN, assetCategory, assetSubCategory, sector, industry, marketID
+        self.asset_df = fix_columns(self.asset_df, {
+            'isin': 'ISIN',
+            'assetcategory': 'assetCategory',
+            'asset_category': 'assetCategory',
+            'assetsubcategory': 'assetSubCategory',
+            'asset_sub_category': 'assetSubCategory',
+            'sector': 'sector',
+            'industry': 'industry',
+            'marketid': 'marketID',
+            'market_id': 'marketID'
+        })
+
+        # -----------------------------------------------
+        # 3. Customers
+        # -----------------------------------------------
+        raw_customers = db.get_customers()
+        self.customer_df = pd.DataFrame(raw_customers)
+        
+        # logic needs: customerID, riskLevel, investmentCapacity, customerType
+        self.customer_df = fix_columns(self.customer_df, {
+            'customerid': 'customerID',
+            'customer_id': 'customerID',
+            'risklevel': 'riskLevel',
+            'risk_level': 'riskLevel',
+            'investmentcapacity': 'investmentCapacity',
+            'investment_capacity': 'investmentCapacity',
+            'customertype': 'customerType',
+            'customer_type': 'customerType'
+        })
+
+        # -----------------------------------------------
+        # 4. Limit Prices
+        # -----------------------------------------------
+        raw_prices = db.get_limit_prices()
+        self.limit_prices_df = pd.DataFrame(raw_prices)
+        
+        # logic needs: ISIN, profitability, priceMaxDate
+        self.limit_prices_df = fix_columns(self.limit_prices_df, {
+            'isin': 'ISIN',
+            'profitability': 'profitability',
+            'pricemaxdate': 'priceMaxDate',
+            'price_max_date': 'priceMaxDate'
+        })
+
+        logger.info(f"Data fetch complete. Txn cols: {self.transactions_df.columns.tolist()}")
 
     # ==========================================
     # 2. PREPROCESSING & TRAINING

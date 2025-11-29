@@ -8,7 +8,14 @@ import json
 
 # 1. Initialize Global Engine
 engine = RecommendationEngine()
-consumer = KafkaConsumer('userprofile', bootstrap_servers=['kafka:9092'], auto_offset_reset='earliest')
+
+# UPDATE 1: Add value_deserializer so messages arrive as Dicts, not Bytes
+consumer = KafkaConsumer(
+    'userprofile', 
+    bootstrap_servers=['kafka:9092'], 
+    auto_offset_reset='earliest',
+    value_deserializer=lambda m: json.loads(m.decode('utf-8')) # decoding logic
+)
 
 def run_scheduler():
     """Background thread to update models every X minutes"""
@@ -24,43 +31,64 @@ def process_kafka_message(msg):
     """
     Mock function for processing a Kafka message.
     Message: {'customer_id': '123', action:'request_recs'}
-    Message: {'customer_id': '123', action:'refresh_recs'}
     """
-    action = msg.get('action')
-    customer_id = msg.get('customer_id')
-    if action == 'request_recs':
-        if engine.is_ready:
-            recs = engine.get_recommendation(customer_id, top_n=10)
-            save_recommendations(customer_id, recs)
-            print(f"Recommendations for {customer_id}: {recs}")
-            # Produce result back to Kafka or save to DB
-        else:
-            print("System warming up, cannot recommend yet.")
+    # Defensive programming: Check if msg is actually a dict
+    if not isinstance(msg, dict):
+        print(f"Error: Received invalid message format: {type(msg)}")
+        return
 
-    elif action == 'refresh_recs':
-        engine.refresh_models()
-        print("Recommendations refreshed.")
+    # In your new architecture, the payload is the user profile itself
+    # So we assume the action is implied or we check the payload structure
+    
+    # Adapt this to match your UserProfilePayload from server.py
+    customer_id = msg.get('customer_id')
+    
+    # If the message contains history_isins, it's a recommendation request
+    if customer_id and engine.is_ready:
+        print(f"Generating recommendations for {customer_id}...")
+        
+        # Note: You might want to pass the specific user profile data 
+        # from 'msg' into get_recommendation if you implemented the 
+        # optimizations we discussed previously.
+        recs = engine.get_recommendation(customer_id, top_n=10)
+        
+        save_recommendations(customer_id, recs)
+        print(f"Saved recommendations for {customer_id}")
     else:
-        print("Invalid action.")
+        print("System warming up or invalid message.")
 
 def main():
     # 1. Initial Load (Blocking)
     print("Initializing Worker... Loading Data...")
     engine.refresh_models()
     
-    # 2. Schedule Retraining (e.g., every 6 hours)
-    # This runs in a separate thread so it doesn't block Kafka consumption
+    # 2. Schedule Retraining
     schedule.every(10).minutes.do(refresh_job)
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
     scheduler_thread.start()
 
-    # 3. Kafka Consumer Loop (Pseudo-code)
+    # 3. Kafka Consumer Loop
     print("Worker started. Listening for messages...")
     
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None: continue
-        process_kafka_message(json.loads(msg.value()))
+    try:
+        while True:
+            # poll returns a Dictionary: { TopicPartition: [List of Records] }
+            msg_batch = consumer.poll(timeout_ms=1000)
+            
+            # Check if batch is empty
+            if not msg_batch:
+                continue
+            
+            # Iterate over partitions and their lists of messages
+            for partition, messages in msg_batch.items():
+                for record in messages:
+                    # record.value is now a Dict because of value_deserializer above
+                    process_kafka_message(record.value)
+                    
+    except KeyboardInterrupt:
+        print("Worker stopping...")
+    finally:
+        consumer.close()
     
 if __name__ == "__main__":
     main()

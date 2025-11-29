@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy worker files
 COPY kafka_worker.py .
-COPY processing.py .
+COPY recommendation_engine.py .
 COPY db.py .
 
 # Set environment variables
