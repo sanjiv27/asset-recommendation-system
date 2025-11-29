@@ -219,8 +219,9 @@ def get_recommendations(payload: RecommendationRequest):
     Receives full user profile from client, sends to Worker to generate recommendations.
     """
     try:
-        worker_message = payload.dict()
-        worker_message['timestamp'] = datetime.utcnow().isoformat()
+        worker_message = {}
+        worker_message['customer_id'] = payload.customer_id
+        worker_message['action'] = 'request_recs'
 
         future = producer.send('userprofile', value=worker_message)
         record_metadata = future.get(timeout=10)

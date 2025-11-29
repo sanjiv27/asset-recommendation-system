@@ -80,7 +80,4 @@ class CustomerType(str, Enum):
 
 class RecommendationRequest(BaseModel):
     customer_id: str = Field(..., description="Unique user identifier")
-    risk_level: RiskLevel = Field(..., description="User's risk tolerance")
-    investment_capacity: InvestCapacity = Field(..., description="User's investment capacity")
-    customer_type: CustomerType = Field(default=CustomerType.MASS)
-    history_isins: List[str] = Field(default_factory=list, description="List of ISINs the user already bought")
+    action: Literal["request_recs", "refresh_recs"] = Field(..., description="Action to perform")
