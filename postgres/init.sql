@@ -78,3 +78,11 @@ CREATE TABLE IF NOT EXISTS user_interactions (
     metadata JSONB,
     PRIMARY KEY (user_name, interaction_type, asset_id, timestamp)
 );
+
+-- Recommendations Table
+CREATE TABLE IF NOT EXISTS recommendations (
+    customerID VARCHAR(50) NOT NULL,
+    recommendations JSONB,
+    timestamp DATE NOT NULL,
+    PRIMARY KEY (customerID, timestamp)
+);
