@@ -57,9 +57,9 @@ def process_kafka_message(msg):
     
     # Adapt this to match your UserProfilePayload from server.py
     customer_id = msg.get('customer_id')
-    
+    action = msg.get('action')
     # If the message contains history_isins, it's a recommendation request
-    if customer_id and engine.is_ready:
+    if customer_id and engine.is_ready and action == 'request_recs':
         print(f"Generating recommendations for {customer_id}...")
         
         # Note: You might want to pass the specific user profile data 
@@ -69,6 +69,10 @@ def process_kafka_message(msg):
         
         save_recommendations(customer_id, recs)
         print(f"Saved recommendations for {customer_id}")
+    elif action == 'refresh_recs':
+        print(f"Refreshing recommendations for {customer_id}...")
+        engine.refresh_models()
+        print(f"Refreshed recommendations for {customer_id}")
     else:
         print("System warming up or invalid message.")
 

@@ -239,7 +239,7 @@ def get_recommendations(payload: RecommendationRequest):
     try:
         worker_message = {}
         worker_message['customer_id'] = payload.customer_id
-        worker_message['action'] = 'request_recs'
+        worker_message['action'] = payload.action
 
 
         future = producer.send('userprofile', value=worker_message, key=payload.customer_id)

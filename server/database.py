@@ -306,7 +306,7 @@ def display_recommendations_details(customer_id: str) -> List[Dict[str, Any]]:
                 # 2. Query Asset Details for these ISINs
                 # We use the ANY(%s) syntax which works perfectly with Python lists in Postgres
                 query = """
-                    SELECT 
+                    SELECT DISTINCT ON (a.ISIN)
                         a.ISIN, 
                         a.assetName, 
                         a.assetCategory, 
@@ -317,6 +317,7 @@ def display_recommendations_details(customer_id: str) -> List[Dict[str, Any]]:
                     FROM asset_information a
                     LEFT JOIN limit_prices l ON a.ISIN = l.ISIN
                     WHERE a.ISIN = ANY(%s)
+                    ORDER BY a.ISIN, a.timestamp DESC
                 """
                 
                 cursor.execute(query, (rec_isins,))
@@ -357,4 +358,3 @@ def log_interaction(customer_id, isin, type="click"):
     finally:
         _pool.putconn(conn)
 
-        

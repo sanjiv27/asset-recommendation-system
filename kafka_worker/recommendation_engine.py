@@ -297,7 +297,7 @@ class RecommendationEngine:
         except Exception as e:
             logger.error(f"Error during model refresh: {e}", exc_info=True)
 
-    def get_recommendation(self, customer_id: str, top_n: int = 10, weights: tuple = (0.3, 0.3, 0.3, 0.1), recent_interactions: list = None):
+    def get_recommendation(self, customer_id: str, top_n: int = 10, weights: tuple = (0.4, 0.3, 0.3), recent_interactions: list = None):
         """
         Generates hybrid recommendations.
         """
@@ -341,7 +341,7 @@ class RecommendationEngine:
             # Bonus constants
             SECTOR_BONUS = 0.05  # 5% boost per click in this sector
             CAT_BONUS = 0.05     # 5% boost per click in this category
-            MAX_BOOST = 0.3      # Cap the boost at 30% so we don't break the algorithm
+            MAX_BOOST = 0.4      # Cap the boost at 40% so we don't break the algorithm
 
             # Map the counts to the asset dataframe
             sector_boost = self.asset_df['sector'].map(clicked_sectors).fillna(0) * SECTOR_BONUS
@@ -362,7 +362,7 @@ class RecommendationEngine:
         final_score = (weights[0] * normalize(cf_scores) + 
                        weights[1] * normalize(cb_scores) + 
                        weights[2] * normalize(demo_scores) +
-                       weights[3] * normalize(boost_scores))
+                       boost_scores)
         
         return final_score.sort_values(ascending=False).head(top_n).index.tolist()
 
