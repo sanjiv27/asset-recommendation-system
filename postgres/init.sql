@@ -83,6 +83,6 @@ CREATE TABLE IF NOT EXISTS user_interactions (
 CREATE TABLE IF NOT EXISTS recommendations (
     customerID VARCHAR(50) NOT NULL,
     recommendations JSONB,
-    timestamp DATE NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
     PRIMARY KEY (customerID, timestamp)
 );

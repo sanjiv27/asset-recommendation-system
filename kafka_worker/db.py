@@ -124,7 +124,7 @@ def save_recommendations(customer_id: str, recommendations: List[dict]):
     Returns list of dicts with columns: customerID, recommendations
     """
     recommendations_json = json.dumps(recommendations)
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now().replace(second=0, microsecond=0)    
     connection = _pool.getconn()
     try:
         with connection:

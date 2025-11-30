@@ -17,7 +17,8 @@ def get_kafka_consumer():
         try:
             consumer = KafkaConsumer(
                 'userprofile', 
-                bootstrap_servers=['kafka:9092'], 
+                bootstrap_servers=['kafka:9092'],
+                group_id='asset_recommendation_worker_group',
                 auto_offset_reset='earliest',
                 value_deserializer=lambda m: json.loads(m.decode('utf-8'))
             )
@@ -97,8 +98,12 @@ def main():
             for partition, messages in msg_batch.items():
                 for record in messages:
                     # record.value is now a Dict because of value_deserializer above
-                    process_kafka_message(record.value)
-                    
+                    try: 
+                        process_kafka_message(record.value)
+                    except Exception as e:
+                        print(f"Error processing message: {e}")
+                        continue
+            consumer.commit()
     except KeyboardInterrupt:
         print("Worker stopping...")
     finally:
