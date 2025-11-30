@@ -3,7 +3,7 @@ import threading
 import schedule
 from recommendation_engine import RecommendationEngine
 from kafka import KafkaConsumer
-from db import save_recommendations
+from db import save_recommendations, get_recent_user_interactions
 import json
 from kafka.errors import NoBrokersAvailable
 
@@ -65,7 +65,7 @@ def process_kafka_message(msg):
         # Note: You might want to pass the specific user profile data 
         # from 'msg' into get_recommendation if you implemented the 
         # optimizations we discussed previously.
-        recs = engine.get_recommendation(customer_id, top_n=10)
+        recs = engine.get_recommendation(customer_id, top_n=10, recent_interactions=get_recent_user_interactions(customer_id))
         
         save_recommendations(customer_id, recs)
         print(f"Saved recommendations for {customer_id}")
