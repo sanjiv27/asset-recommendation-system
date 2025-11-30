@@ -297,7 +297,7 @@ class RecommendationEngine:
         except Exception as e:
             logger.error(f"Error during model refresh: {e}", exc_info=True)
 
-    def get_recommendation(self, customer_id: str, top_n: int = 10, weights: tuple = (0.4, 0.3, 0.3)):
+    def get_recommendation(self, customer_id: str, top_n: int = 10, weights: tuple = (0.3, 0.3, 0.3, 0.1), recent_interactions: list = None):
         """
         Generates hybrid recommendations.
         """
@@ -319,6 +319,40 @@ class RecommendationEngine:
         # --- 3. Demographic Score ---
         demo_scores = self._calculate_demo_score_fast(customer_id)
 
+        # --- 4. INTERACTION BOOST ---
+        boost_scores = pd.Series(0.0, index=self.asset_df['ISIN'])
+        
+        if recent_interactions:
+            # 1. Aggregate User's Interests
+            # Count how many times user clicked specific categories/sectors
+            clicked_sectors = {}
+            clicked_categories = {}
+            
+            for action in recent_interactions:
+                sector = action.get('sector')
+                cat = action.get('assetCategory')
+                weight = action.get('weight', 1)
+                
+                if sector: clicked_sectors[sector] = clicked_sectors.get(sector, 0) + weight
+                if cat: clicked_categories[cat] = clicked_categories.get(cat, 0) + weight
+
+            # 2. Apply Boost to All Assets
+            
+            # Bonus constants
+            SECTOR_BONUS = 0.05  # 5% boost per click in this sector
+            CAT_BONUS = 0.05     # 5% boost per click in this category
+            MAX_BOOST = 0.3      # Cap the boost at 30% so we don't break the algorithm
+
+            # Map the counts to the asset dataframe
+            sector_boost = self.asset_df['sector'].map(clicked_sectors).fillna(0) * SECTOR_BONUS
+            cat_boost = self.asset_df['assetCategory'].map(clicked_categories).fillna(0) * CAT_BONUS
+            
+            # Combine and Clip
+            total_boost = (sector_boost + cat_boost).clip(upper=MAX_BOOST)
+            
+            # Align indices
+            boost_scores = pd.Series(total_boost.values, index=self.asset_df['ISIN'])
+
         # --- Hybrid Mixing ---
         def normalize(s):
             if s.max() - s.min() > 0:
@@ -327,7 +361,8 @@ class RecommendationEngine:
 
         final_score = (weights[0] * normalize(cf_scores) + 
                        weights[1] * normalize(cb_scores) + 
-                       weights[2] * normalize(demo_scores))
+                       weights[2] * normalize(demo_scores) +
+                       weights[3] * normalize(boost_scores))
         
         return final_score.sort_values(ascending=False).head(top_n).index.tolist()
 
