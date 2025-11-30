@@ -338,3 +338,23 @@ def display_recommendations_details(customer_id: str) -> List[Dict[str, Any]]:
         
     finally:
         _pool.putconn(connection)
+
+def log_interaction(customer_id, isin, type="click"):
+    """
+    Saves a user click.
+    """
+    conn = _pool.getconn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO user_interactions (customerID, ISIN, interactionType, weight, timestamp)
+                VALUES (%s, %s, %s, %s, NOW())
+                """,
+                (customer_id, isin, type, 1) # Weight 1 for basic clicks
+            )
+            conn.commit()
+    finally:
+        _pool.putconn(conn)
+
+        

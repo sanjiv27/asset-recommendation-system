@@ -68,17 +68,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     marketID VARCHAR(20)
 );
 
--- User Interactions Table
--- Stores user interactions with assets (clicks, views, purchases, etc.)
-CREATE TABLE IF NOT EXISTS user_interactions (
-    user_name VARCHAR(100) NOT NULL,
-    interaction_type VARCHAR(50) NOT NULL,
-    asset_id VARCHAR(50) NOT NULL,
-    timestamp TIMESTAMP NOT NULL,
-    metadata JSONB,
-    PRIMARY KEY (user_name, interaction_type, asset_id, timestamp)
-);
-
 -- Recommendations Table
 CREATE TABLE IF NOT EXISTS recommendations (
     customerID VARCHAR(50) NOT NULL,
@@ -86,3 +75,16 @@ CREATE TABLE IF NOT EXISTS recommendations (
     timestamp TIMESTAMP NOT NULL,
     PRIMARY KEY (customerID, timestamp)
 );
+
+-- User Interactions Table
+CREATE TABLE IF NOT EXISTS user_interactions (
+    interactionID SERIAL PRIMARY KEY,
+    customerID VARCHAR(50) NOT NULL,
+    ISIN VARCHAR(20) NOT NULL,
+    interactionType VARCHAR(20) NOT NULL, -- 'click', 'view_details', 'add_watchlist'
+    weight INT DEFAULT 1,                 -- 1 for click, 3 for watchlist, etc.
+    timestamp TIMESTAMP NOT NULL
+);
+
+-- Index for fast retrieval during recommendation generation
+CREATE INDEX idx_interactions_user_time ON user_interactions(customerID, timestamp DESC);

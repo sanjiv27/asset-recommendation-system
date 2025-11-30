@@ -81,3 +81,14 @@ class CustomerType(str, Enum):
 class RecommendationRequest(BaseModel):
     customer_id: str = Field(..., description="Unique user identifier")
     action: Literal["request_recs", "refresh_recs"] = Field(..., description="Action to perform")
+
+class InteractionType(str, Enum):
+    CLICK = "click"
+    VIEW_DETAILS = "view_details"
+    ADD_WATCHLIST = "add_watchlist"
+
+class UserInteraction(BaseModel):
+    customer_id: str = Field(..., description="Unique user identifier")
+    isin: str = Field(..., description="ISIN of the asset")
+    type: InteractionType = Field(..., description="Type of interaction")
+    weight: Optional[int] = Field(default=1, description="Weight of the interaction")

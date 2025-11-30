@@ -10,6 +10,7 @@ from .database import (
     batch_insert_close_prices,
     batch_insert_transactions,
     display_recommendations_details,
+    log_interaction,
 )
 from .data_class import (
     CustomerInformationRow,
@@ -19,6 +20,7 @@ from .data_class import (
     LimitPricesRow,
     TransactionsRow,
     RecommendationRequest,
+    UserInteraction,
 )
 from datetime import datetime
 from kafka import KafkaProducer
@@ -256,8 +258,20 @@ def display_recommendations(customer_id: str):
     recommendations = display_recommendations_details(customer_id)
     return {"status": "ok", "recommendations": recommendations}
 
+@app.post("/user_interactions")
+def log_user_interaction(payload: UserInteraction):
+    """
+    Log a user interaction.
+    """
+    try:
+        log_interaction(payload.customer_id, payload.isin, payload.type)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error logging interaction: {str(e)}")
+
 @app.get("/health")
-def health() -> dict:
+def health():
+    """
+    Check the health of the server.
+    """
     return {"status": "ok"}
-
-
