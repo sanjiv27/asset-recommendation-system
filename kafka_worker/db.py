@@ -138,3 +138,29 @@ def save_recommendations(customer_id: str, recommendations: List[dict]):
         _pool.putconn(connection)
     return True
 
+def get_recent_user_interactions(customer_id: str, days: int = 1):
+    """
+    Fetches interactions for the last X days.
+    """
+    conn = _pool.getconn()
+    try:
+        with conn.cursor() as cursor:
+            # We join with asset_information immediately to get the sector/category of what they clicked
+            query = """
+                SELECT 
+                    i.ISIN, 
+                    i.interactionType,
+                    i.weight,
+                    a.assetCategory,
+                    a.sector,
+                    a.industry
+                FROM user_interactions i
+                JOIN asset_information a ON i.ISIN = a.ISIN
+                WHERE i.customerID = %s 
+                  AND i.timestamp >= NOW() - INTERVAL '%s days'
+            """
+            cursor.execute(query, (customer_id, days))
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    finally:
+        _pool.putconn(conn)
