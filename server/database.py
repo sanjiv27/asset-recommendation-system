@@ -1,5 +1,5 @@
 import os
-from typing import Tuple
+from typing import Tuple, List, Dict, Any
 
 from psycopg2.pool import SimpleConnectionPool
 
@@ -269,3 +269,72 @@ def batch_insert_transactions(rows: list[tuple]) -> None:
     )
     execute_batch_upsert(sql, rows)
 
+def display_recommendations_details(customer_id: str) -> List[Dict[str, Any]]:
+    """
+    Fetches the latest recommendations for a user and retrieves 
+    full asset details (Name, Price, Category, etc.) for those items.
+    """
+    connection = _pool.getconn()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                # 1. Get the list of ISINs from the most recent recommendation
+                cursor.execute(
+                    """
+                    SELECT recommendations, timestamp 
+                    FROM recommendations 
+                    WHERE customerID = %s 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                    """,
+                    (customer_id,)
+                )
+                row = cursor.fetchone()
+                
+                # If no recommendations found, return empty list
+                if not row:
+                    return []
+                
+                # Psycopg2 usually converts JSONB directly to a Python list. 
+                # If it comes back as a string, we might need json.loads(row[0])
+                rec_isins = row[0] 
+                rec_date = row[1]
+
+                if not rec_isins:
+                    return []
+
+                # 2. Query Asset Details for these ISINs
+                # We use the ANY(%s) syntax which works perfectly with Python lists in Postgres
+                query = """
+                    SELECT 
+                        a.ISIN, 
+                        a.assetName, 
+                        a.assetCategory, 
+                        a.sector, 
+                        a.industry,
+                        l.priceMaxDate as current_price,
+                        l.profitability
+                    FROM asset_information a
+                    LEFT JOIN limit_prices l ON a.ISIN = l.ISIN
+                    WHERE a.ISIN = ANY(%s)
+                """
+                
+                cursor.execute(query, (rec_isins,))
+                
+                # Convert rows to list of dictionaries
+                columns = [desc[0] for desc in cursor.description]
+                results = []
+                for asset_row in cursor.fetchall():
+                    asset_dict = dict(zip(columns, asset_row))
+                    # Add the recommendation timestamp for context
+                    asset_dict['recommendation_date'] = rec_date
+                    results.append(asset_dict)
+                
+                return results
+
+    except Exception as e:
+        print(f"Error fetching recommendation details: {e}")
+        return []
+        
+    finally:
+        _pool.putconn(connection)

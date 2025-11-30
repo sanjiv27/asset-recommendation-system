@@ -138,21 +138,3 @@ def save_recommendations(customer_id: str, recommendations: List[dict]):
         _pool.putconn(connection)
     return True
 
-def get_recommendations(customer_id: str) -> List[dict]:
-    """
-    Get recommendations from database.
-    Returns list of dicts with columns: customerID, recommendations, timestamp
-    """
-    connection = _pool.getconn()
-    try:
-        with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT recommendations, timestamp FROM recommendations WHERE customerID = %s ORDER BY timestamp DESC LIMIT 1",
-                    (customer_id,)
-                )
-                columns = [desc[0] for desc in cursor.description]
-                return [dict(zip(columns, row)) for row in cursor.fetchall()]
-    finally:
-        _pool.putconn(connection)
-    return []

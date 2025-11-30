@@ -9,6 +9,7 @@ from .database import (
     batch_insert_customer_information,
     batch_insert_close_prices,
     batch_insert_transactions,
+    display_recommendations_details,
 )
 from .data_class import (
     CustomerInformationRow,
@@ -246,6 +247,14 @@ def get_recommendations(payload: RecommendationRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
+@app.get("/recommendations/{customer_id}")
+def display_recommendations(customer_id: str):
+    """
+    Display recommendations for a customer.
+    """
+    recommendations = display_recommendations_details(customer_id)
+    return {"status": "ok", "recommendations": recommendations}
 
 @app.get("/health")
 def health() -> dict:
