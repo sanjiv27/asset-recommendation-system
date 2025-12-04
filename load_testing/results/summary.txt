@@ -1,0 +1,21 @@
+
+Load Test Summary Report
+========================
+Duration: 1592 seconds
+Data Points: 130
+
+Kafka Metrics:
+- Max Consumer Lag: 11 messages
+- Avg Consumer Lag: 0.32 messages
+- Total Messages Processed: 1483
+
+API Performance:
+- Avg Latency: 3.42 ms
+- Max Latency: 73.36 ms
+- Min Latency: 2.04 ms
+- P95 Latency: 3.88 ms
+
+System Throughput:
+- Total Interactions: 3863
+- Total Recommendations: 1479
+- Avg DB Connections: 1.05

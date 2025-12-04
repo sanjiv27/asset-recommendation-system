@@ -1,0 +1,44 @@
+[
+  {
+    "users": 50,
+    "requests": 2219,
+    "avg_latency": 6.0,
+    "req_per_sec": 1000.9598918431726,
+    "max_kafka_lag": 11
+  },
+  {
+    "users": 100,
+    "requests": 4433,
+    "avg_latency": 5.0,
+    "req_per_sec": 999.9280397022333,
+    "max_kafka_lag": 11
+  },
+  {
+    "users": 200,
+    "requests": 8543,
+    "avg_latency": 4.0,
+    "req_per_sec": 1010.4356783331383,
+    "max_kafka_lag": 11
+  },
+  {
+    "users": 300,
+    "requests": 12456,
+    "avg_latency": 4.0,
+    "req_per_sec": 990.5356454720617,
+    "max_kafka_lag": 11
+  },
+  {
+    "users": 400,
+    "requests": 16073,
+    "avg_latency": 4.0,
+    "req_per_sec": 995.4022273377714,
+    "max_kafka_lag": 11
+  },
+  {
+    "users": 500,
+    "requests": 19482,
+    "avg_latency": 5.0,
+    "req_per_sec": 999.7397597782568,
+    "max_kafka_lag": 24
+  }
+]

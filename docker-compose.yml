@@ -81,4 +81,19 @@ services:
     depends_on:
       - server
 
+  loadtest:
+    build: ./load_testing
+    container_name: asset-recommendation-loadtest
+    ports:
+      - "8089:8089"  # Locust web UI
+    volumes:
+      - ./load_testing/results:/results
+    depends_on:
+      server:
+        condition: service_started
+      db:
+        condition: service_healthy
+    profiles:
+      - loadtest  # Only starts when explicitly requested
+
 

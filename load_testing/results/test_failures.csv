@@ -1,0 +1,12 @@
+Method,Name,Error,Occurrences
+POST,/user_interactions,HTTPError('500 Server Error: Internal Server Error for url: /user_interactions'),67
+POST,/watchlist/C005/GRS247003007,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C005/GRS247003007'),1
+POST,/watchlist/C002/GRC419120AD7,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C002/GRC419120AD7'),1
+POST,/watchlist/C005/GRC2451227D9,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C005/GRC2451227D9'),1
+POST,/watchlist/C002/GRS320313000,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C002/GRS320313000'),1
+POST,/watchlist/DED5BF19E23CCCFEE322/GRC419120AD7,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/DED5BF19E23CCCFEE322/GRC419120AD7'),1
+POST,/watchlist/C004/GRS003003035,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C004/GRS003003035'),1
+POST,/watchlist/C004/GRC2451227D9,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C004/GRC2451227D9'),1
+POST,/watchlist/C004/GRC1451184D4,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C004/GRC1451184D4'),1
+GET,/recommendations/[customer_id],HTTPError('500 Server Error: Internal Server Error for url: /recommendations/[customer_id]'),153
+POST,/watchlist/C002/GRS247003007,HTTPError('500 Server Error: Internal Server Error for url: /watchlist/C002/GRS247003007'),1
