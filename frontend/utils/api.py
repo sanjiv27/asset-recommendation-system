@@ -16,12 +16,13 @@ def request_recommendations(customer_id: str, action: str = "request_recs"):
     )
     return response.json()
 
-def log_interaction(customer_id: str, isin: str, interaction_type: str = "click"):
+def log_interaction(customer_id: str, isin: str, interaction_type: str = "click", weight: int = None):
     """Log user interaction with an asset."""
-    response = requests.post(
-        f"{API_BASE_URL}/user_interactions",
-        json={"customer_id": customer_id, "isin": isin, "type": interaction_type}
-    )
+    payload = {"customer_id": customer_id, "isin": isin, "type": interaction_type}
+    if weight is not None:
+        payload["weight"] = weight
+    
+    response = requests.post(f"{API_BASE_URL}/user_interactions", json=payload)
     return response.json()
 
 def check_health():
@@ -31,3 +32,18 @@ def check_health():
         return response.json()
     except:
         return {"status": "error"}
+
+def add_to_watchlist(customer_id: str, isin: str):
+    """Add asset to watchlist."""
+    response = requests.post(f"{API_BASE_URL}/watchlist/{customer_id}/{isin}")
+    return response.json()
+
+def remove_from_watchlist(customer_id: str, isin: str):
+    """Remove asset from watchlist."""
+    response = requests.delete(f"{API_BASE_URL}/watchlist/{customer_id}/{isin}")
+    return response.json()
+
+def get_watchlist(customer_id: str):
+    """Get customer's watchlist."""
+    response = requests.get(f"{API_BASE_URL}/watchlist/{customer_id}")
+    return response.json()

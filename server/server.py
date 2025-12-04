@@ -264,10 +264,40 @@ def log_user_interaction(payload: UserInteraction):
     Log a user interaction.
     """
     try:
-        log_interaction(payload.customer_id, payload.isin, payload.type)
+        log_interaction(payload.customer_id, payload.isin, payload.type, payload.weight)
         return {"status": "ok"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error logging interaction: {str(e)}")
+
+@app.post("/watchlist/{customer_id}/{isin}")
+def add_watchlist_item(customer_id: str, isin: str):
+    """Add asset to watchlist."""
+    try:
+        from .database import add_to_watchlist
+        added = add_to_watchlist(customer_id, isin)
+        return {"status": "ok", "added": added}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error adding to watchlist: {str(e)}")
+
+@app.delete("/watchlist/{customer_id}/{isin}")
+def remove_watchlist_item(customer_id: str, isin: str):
+    """Remove asset from watchlist."""
+    try:
+        from .database import remove_from_watchlist
+        removed = remove_from_watchlist(customer_id, isin)
+        return {"status": "ok", "removed": removed}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error removing from watchlist: {str(e)}")
+
+@app.get("/watchlist/{customer_id}")
+def get_customer_watchlist(customer_id: str):
+    """Get customer's watchlist."""
+    try:
+        from .database import get_watchlist
+        watchlist = get_watchlist(customer_id)
+        return {"status": "ok", "watchlist": watchlist}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching watchlist: {str(e)}")
 
 @app.get("/health")
 def health():

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils.api import get_recommendations, request_recommendations, log_interaction, check_health
+from utils.api import get_recommendations, request_recommendations, log_interaction, check_health, add_to_watchlist, get_watchlist
 
 st.set_page_config(
     page_title="Asset Recommendations",
@@ -179,6 +179,18 @@ if 'selected_asset' in st.session_state:
             st.metric("Current Price", f"${asset.get('current_price', 0):.2f}")
             profit = asset.get('profitability', 0)
             st.metric("Profitability", f"{profit*100:.2f}%")
+        
+        st.divider()
+        if st.button("⭐ Add to Watchlist", use_container_width=True):
+            try:
+                result = add_to_watchlist(customer_id, asset.get('isin'))
+                if result.get('added'):
+                    log_interaction(customer_id, asset.get('isin'), "add_watchlist", weight=3)
+                    st.success("✅ Added to watchlist!")
+                else:
+                    st.info("This asset is already in your watchlist")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
     
     show_asset_details()
     del st.session_state['selected_asset']

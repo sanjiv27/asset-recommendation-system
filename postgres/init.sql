@@ -88,3 +88,15 @@ CREATE TABLE IF NOT EXISTS user_interactions (
 
 -- Index for fast retrieval during recommendation generation
 CREATE INDEX idx_interactions_user_time ON user_interactions(customerID, timestamp DESC);
+
+-- Watchlist Table
+CREATE TABLE IF NOT EXISTS watchlist (
+    watchlistID SERIAL PRIMARY KEY,
+    customerID VARCHAR(50) NOT NULL,
+    ISIN VARCHAR(20) NOT NULL,
+    addedDate TIMESTAMP DEFAULT NOW(),
+    UNIQUE(customerID, ISIN)
+);
+
+-- Index for fast watchlist retrieval
+CREATE INDEX idx_watchlist_customer ON watchlist(customerID);

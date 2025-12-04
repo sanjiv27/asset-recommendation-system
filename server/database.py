@@ -340,9 +340,9 @@ def display_recommendations_details(customer_id: str) -> List[Dict[str, Any]]:
     finally:
         _pool.putconn(connection)
 
-def log_interaction(customer_id, isin, type="click"):
+def log_interaction(customer_id, isin, type="click", weight=1):
     """
-    Saves a user click.
+    Saves a user interaction.
     """
     conn = _pool.getconn()
     try:
@@ -352,9 +352,73 @@ def log_interaction(customer_id, isin, type="click"):
                 INSERT INTO user_interactions (customerID, ISIN, interactionType, weight, timestamp)
                 VALUES (%s, %s, %s, %s, NOW())
                 """,
-                (customer_id, isin, type, 1) # Weight 1 for basic clicks
+                (customer_id, isin, type, weight)
             )
             conn.commit()
+    finally:
+        _pool.putconn(conn)
+
+
+def add_to_watchlist(customer_id: str, isin: str):
+    """Add asset to customer's watchlist."""
+    conn = _pool.getconn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO watchlist (customerID, ISIN)
+                VALUES (%s, %s)
+                ON CONFLICT (customerID, ISIN) DO NOTHING
+                """,
+                (customer_id, isin)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    finally:
+        _pool.putconn(conn)
+
+
+def remove_from_watchlist(customer_id: str, isin: str):
+    """Remove asset from customer's watchlist."""
+    conn = _pool.getconn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM watchlist WHERE customerID = %s AND ISIN = %s",
+                (customer_id, isin)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+    finally:
+        _pool.putconn(conn)
+
+
+def get_watchlist(customer_id: str):
+    """Get customer's watchlist with asset details."""
+    conn = _pool.getconn()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT DISTINCT ON (w.ISIN)
+                    w.ISIN,
+                    a.assetName,
+                    a.assetCategory,
+                    a.sector,
+                    a.industry,
+                    l.priceMaxDate as current_price,
+                    l.profitability,
+                    w.addedDate
+                FROM watchlist w
+                LEFT JOIN asset_information a ON w.ISIN = a.ISIN
+                LEFT JOIN limit_prices l ON w.ISIN = l.ISIN
+                WHERE w.customerID = %s
+                ORDER BY w.ISIN, a.timestamp DESC, w.addedDate DESC
+                """,
+                (customer_id,)
+            )
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
     finally:
         _pool.putconn(conn)
 
