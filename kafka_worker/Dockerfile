@@ -16,6 +16,13 @@ COPY kafka_worker.py .
 COPY recommendation_engine.py .
 COPY db.py .
 
+# Copy tests and pytest config
+COPY tests ./tests
+COPY pytest.ini ./pytest.ini
+
+# Run tests (|| true to continue on failure)
+RUN pytest tests/unit/ -v || true
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
