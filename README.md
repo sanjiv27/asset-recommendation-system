@@ -17,9 +17,13 @@ Tech Stack: Kafka, Python, FastAPI
 
 ### Setup Dev Environment
 
-- Initialize all services: Postgres, Server. **Reminder:** We are using docker image to containerize all services, thus if you make any changes in any files, you have to rerun this command to see changes.
+- Initialize all services: Postgres, Server, Worker, UI. **Reminder:** We are using docker image to containerize all services, thus if you make any changes in any files, you have to rerun this command to see changes.
 
 `docker compose up --build -d`
+
+- Access the web UI at: **http://localhost:8501**
+
+- Access the API docs at: **http://localhost:8000/docs**
 
 - Load foundational FAR-trans data into Postgres
 

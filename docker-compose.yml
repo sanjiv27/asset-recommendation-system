@@ -65,4 +65,12 @@ services:
       - kafka
       - db
 
+  ui:
+    build: ./frontend
+    container_name: asset-recommendation-ui
+    ports:
+      - "8501:8501"
+    depends_on:
+      - server
+
 
