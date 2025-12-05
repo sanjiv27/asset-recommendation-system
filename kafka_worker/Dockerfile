@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY kafka_worker.py .
 COPY recommendation_engine.py .
 COPY db.py .
+COPY retrain.py .
 
 # Copy tests and pytest config
 COPY tests ./tests

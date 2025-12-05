@@ -144,7 +144,31 @@ class RecommendationEngine:
 
     def _train_collaborative_filtering(self, train_df):
         """Builds Rating Matrix and Fits SVD."""
-        logger.info("Training Collaborative Filtering model...")
+        import pickle
+        import os
+        
+        # Check for active model
+        active_model_path = '/app/models/active_model.pkl'
+        
+        if os.path.exists(active_model_path):
+            logger.info(f"Loading active model from {active_model_path}...")
+            try:
+                with open(active_model_path, 'rb') as f:
+                    model_data = pickle.load(f)
+                
+                self.rating_matrix = model_data['rating_matrix']
+                self.pred_ratings_df = model_data['pred_ratings_df']
+                
+                metadata = model_data.get('metadata', {})
+                logger.info(f"✓ Loaded model {metadata.get('name', 'Unknown')} (trained on {metadata.get('trained_on', 'Unknown')})")
+                logger.info(f"  - Users: {metadata.get('n_users', 'N/A')}, Items: {metadata.get('n_items', 'N/A')}")
+                logger.info(f"  - Variance explained: {metadata.get('explained_variance', 0):.2%}")
+                return
+            except Exception as e:
+                logger.warning(f"Failed to load active model: {e}")
+        
+        # Original training logic
+        logger.info("Training Collaborative Filtering model from scratch...")
         
         # Build Rating Matrix
         rating_df = train_df.groupby(['customerID', 'ISIN']).size().reset_index(name='count')

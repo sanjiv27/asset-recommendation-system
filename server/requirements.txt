@@ -3,6 +3,7 @@ uvicorn[standard]==0.30.6
 psycopg2-binary==2.9.9
 pydantic==2.9.2
 kafka-python==2.0.2
+requests==2.31.0
 
 # Testing dependencies
 pytest==7.4.3

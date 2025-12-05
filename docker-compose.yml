@@ -54,6 +54,8 @@ services:
   worker:
     build: ./kafka_worker
     container_name: asset-recommendation-worker
+    volumes:
+      - ./kafka_worker/models:/app/models
     environment:
       KAFKA_BROKER_URL: kafka:9092
       KAFKA_GROUP_ID: asset-reco-workers

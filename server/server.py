@@ -27,6 +27,7 @@ from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable
 import json
 import time
+import requests
 
 def get_kafka_producer():
     retries = 0
@@ -305,3 +306,47 @@ def health():
     Check the health of the server.
     """
     return {"status": "ok"}
+
+@app.post("/models/{model_name}/activate")
+def activate_model(model_name: str):
+    """Activate a specific model version."""
+    try:
+        response = requests.post(f"http://worker:5000/models/{model_name}/activate", timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return {"status": "error", "message": f"Activation failed: {response.text}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/models")
+def list_models():
+    """List available models."""
+    try:
+        response = requests.get("http://worker:5000/models", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        return {"status": "error", "models": []}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "models": []}
+
+@app.post("/retrain")
+def retrain_model():
+    """Trigger model retraining with latest interaction data."""
+    try:
+        start_time = time.time()
+        response = requests.post("http://worker:5000/retrain", timeout=300)
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
+            result = response.json()
+            return {
+                "status": "ok",
+                "message": f"Model retrained in {elapsed:.1f}s - {result.get('training_samples', 0)} samples, {result.get('explained_variance', 'N/A')} variance explained",
+                "details": result
+            }
+        return {"status": "error", "message": f"Retraining failed: {response.text}"}
+    except requests.exceptions.Timeout:
+        return {"status": "error", "message": "Retraining timed out (>5 min)"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(e)}

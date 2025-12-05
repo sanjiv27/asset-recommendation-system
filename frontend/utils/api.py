@@ -47,3 +47,29 @@ def get_watchlist(customer_id: str):
     """Get customer's watchlist."""
     response = requests.get(f"{API_BASE_URL}/watchlist/{customer_id}")
     return response.json()
+
+def retrain_model():
+    """Trigger model retraining."""
+    try:
+        response = requests.post(f"{API_BASE_URL}/retrain", timeout=300)
+        return response.json()
+    except requests.exceptions.Timeout:
+        return {"status": "error", "message": "Retraining timed out (>5 min)"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def list_models():
+    """List available models."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/models", timeout=5)
+        return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e), "models": []}
+
+def activate_model(model_name: str):
+    """Activate a specific model."""
+    try:
+        response = requests.post(f"{API_BASE_URL}/models/{model_name}/activate", timeout=10)
+        return response.json()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

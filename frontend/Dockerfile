@@ -11,4 +11,4 @@ EXPOSE 8501
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["streamlit", "run", "Home.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "home.py", "--server.port=8501", "--server.address=0.0.0.0"]

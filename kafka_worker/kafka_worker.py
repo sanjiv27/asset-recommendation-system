@@ -6,6 +6,85 @@ from kafka import KafkaConsumer
 from db import save_recommendations, get_recent_user_interactions
 import json
 from kafka.errors import NoBrokersAvailable
+from flask import Flask, jsonify
+import os
+
+# Flask app for internal API
+app = Flask(__name__)
+
+@app.route('/models', methods=['GET'])
+def list_models():
+    """List available models and their metadata."""
+    import pickle
+    models = []
+    
+    models_dir = "/app/models"
+    if not os.path.exists(models_dir):
+        return jsonify({"status": "ok", "models": []})
+    
+    # Get active model
+    active_link = os.path.join(models_dir, 'active_model.pkl')
+    active_model = None
+    if os.path.islink(active_link):
+        active_model = os.path.basename(os.readlink(active_link))
+    
+    # List all versioned models
+    for filename in sorted(os.listdir(models_dir)):
+        if filename.startswith('model_v') and filename.endswith('.pkl'):
+            model_path = os.path.join(models_dir, filename)
+            try:
+                with open(model_path, 'rb') as f:
+                    model_data = pickle.load(f)
+                metadata = model_data.get('metadata', {})
+                models.append({
+                    "name": metadata.get('name', filename.replace('.pkl', '')),
+                    "filename": filename,
+                    "type": "SVD",
+                    "status": "active" if filename == active_model else "inactive",
+                    "n_users": metadata.get('n_users', 'N/A'),
+                    "n_items": metadata.get('n_items', 'N/A'),
+                    "explained_variance": f"{metadata.get('explained_variance', 0)*100:.2f}%",
+                    "trained_on": metadata.get('trained_on', 'Unknown')
+                })
+            except:
+                pass
+    
+    return jsonify({"status": "ok", "models": models})
+
+@app.route('/models/<model_name>/activate', methods=['POST'])
+def activate_model(model_name):
+    """Set a model as active."""
+    models_dir = "/app/models"
+    model_path = os.path.join(models_dir, model_name)
+    
+    if not os.path.exists(model_path):
+        return jsonify({"status": "error", "message": "Model not found"}), 404
+    
+    active_link = os.path.join(models_dir, 'active_model.pkl')
+    if os.path.exists(active_link):
+        os.remove(active_link)
+    os.symlink(model_path, active_link)
+    
+    # Reload engine
+    engine.refresh_models()
+    
+    return jsonify({"status": "ok", "message": f"Activated {model_name}"})
+
+@app.route('/retrain', methods=['POST'])
+def trigger_retrain():
+    """Internal endpoint to trigger model retraining."""
+    try:
+        from retrain import retrain_model
+        result = retrain_model()
+        # Reload the engine after retraining
+        engine.refresh_models()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+def run_flask():
+    """Run Flask server in background thread."""
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 # 1. Initialize Global Engine
 engine = RecommendationEngine()
@@ -61,18 +140,14 @@ def process_kafka_message(msg):
     # If the message contains history_isins, it's a recommendation request
     if customer_id and engine.is_ready and action == 'request_recs':
         print(f"Generating recommendations for {customer_id}...")
-        
-        # Note: You might want to pass the specific user profile data 
-        # from 'msg' into get_recommendation if you implemented the 
-        # optimizations we discussed previously.
         recs = engine.get_recommendation(customer_id, top_n=10, recent_interactions=get_recent_user_interactions(customer_id))
-        
         save_recommendations(customer_id, recs)
         print(f"Saved recommendations for {customer_id}")
     elif action == 'refresh_recs':
         print(f"Refreshing recommendations for {customer_id}...")
-        engine.refresh_models()
-        print(f"Refreshed recommendations for {customer_id}")
+        recs = engine.get_recommendation(customer_id, top_n=10, recent_interactions=get_recent_user_interactions(customer_id))
+        save_recommendations(customer_id, recs)
+        print(f"Saved refreshed recommendations for {customer_id}")
     else:
         print("System warming up or invalid message.")
 
@@ -114,4 +189,9 @@ def main():
         consumer.close()
     
 if __name__ == "__main__":
+    # Start Flask API in background
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    print("Internal API started on port 5000")
+    
     main()
