@@ -179,7 +179,7 @@ Right now we only support click interactions for users, as a proof of concept, w
 ##### Generate User Click
 Usage: python generate_interactions.py <USER_ID> <SECTOR> [NUM_CLICKS]
 
-`python script/generate_interactions.py 85583A768E48870A546D Technology 10`
+`python script/gen_user_click.py 85583A768E48870A546D Technology 10`
 
 ##### /user_interactions
 * **Method:** `POST`
