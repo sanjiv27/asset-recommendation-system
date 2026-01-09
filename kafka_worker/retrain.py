@@ -74,6 +74,7 @@ def retrain_model():
         'rating_matrix': rating_matrix,
         'svd_model': svd_model,
         'pred_ratings_df': pred_ratings_df,
+        'rating_df': combined_ratings,  # Adding this for content-based filtering
         'metadata': {
             'version': version,
             'name': f"v{version}",
